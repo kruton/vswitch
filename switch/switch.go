@@ -28,10 +28,10 @@ type VirtualSwitch struct {
 	ports      []int
 
 	// Statistics
-	totalFrames    uint64
+	totalFrames     uint64
 	broadcastFrames uint64
-	unicastFrames  uint64
-	droppedFrames  uint64
+	unicastFrames   uint64
+	droppedFrames   uint64
 
 	// Control
 	shutdown chan bool
@@ -70,7 +70,7 @@ func (vs *VirtualSwitch) Stop() {
 	close(vs.shutdown)
 
 	// Close all connections
-	vs.connections.Range(func(key, value interface{}) bool {
+	vs.connections.Range(func(_, value interface{}) bool {
 		if conn, ok := value.(*Connection); ok {
 			_ = conn.Close()
 		}
@@ -133,36 +133,54 @@ func (vs *VirtualSwitch) listenOnPort(port int) {
 // handleConnection handles a single VM connection
 func (vs *VirtualSwitch) handleConnection(conn *Connection) {
 	defer vs.wg.Done()
-	defer func() {
-		vs.cleanupConnection(conn)
-	}()
+	defer vs.cleanupConnection(conn)
 
 	log.Printf("Handling connection: %s", conn.ID)
+
+	frameChan := make(chan *EthernetFrame, 100)
+	errorChan := make(chan error, 10)
+
+	// Start frame reading goroutine
+	go func() {
+		defer close(frameChan)
+		defer close(errorChan)
+		for {
+			frame, err := conn.ReadFrame()
+			if err != nil {
+				select {
+				case errorChan <- err:
+				case <-vs.shutdown:
+				}
+				return
+			}
+			select {
+			case frameChan <- frame:
+			case <-vs.shutdown:
+				return
+			}
+		}
+	}()
 
 	for {
 		select {
 		case <-vs.shutdown:
 			return
-		default:
-		}
-
-		// Set read timeout to allow periodic shutdown checks
-		_ = conn.Conn.SetReadDeadline(time.Now().Add(1 * time.Second))
-
-		frame, err := conn.ReadFrame()
-		if err != nil {
-			// Check if it's a timeout (expected for shutdown checking)
-			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-				continue
+		case frame, ok := <-frameChan:
+			if !ok {
+				return // channel closed
+			}
+			// Process the frame
+			if err := vs.processFrame(frame, conn); err != nil {
+				log.Printf("Error processing frame from %s: %v", conn.ID, err)
+				vs.droppedFrames++
+			}
+			frame.Release()
+		case err, ok := <-errorChan:
+			if !ok {
+				return // channel closed
 			}
 			log.Printf("Connection %s read error: %v", conn.ID, err)
 			return
-		}
-
-		// Process the frame
-		if err := vs.processFrame(frame, conn); err != nil {
-			log.Printf("Error processing frame from %s: %v", conn.ID, err)
-			vs.droppedFrames++
 		}
 	}
 }
@@ -186,13 +204,23 @@ func (vs *VirtualSwitch) processFrame(frame *EthernetFrame, sourceConn *Connecti
 // learnMAC learns or updates a MAC address in the learning table
 func (vs *VirtualSwitch) learnMAC(mac net.HardwareAddr, conn *Connection) {
 	macStr := mac.String()
+
+	if entryInterface, found := vs.macTable.Load(macStr); found {
+		existingEntry := entryInterface.(*MACEntry)
+		if existingEntry.Connection.ID == conn.ID {
+			existingEntry.LearnedAt = time.Now()
+			return
+		}
+		log.Printf("MAC %s moved from connection %s to %s", macStr, existingEntry.Connection.ID, conn.ID)
+	} else {
+		log.Printf("Learned MAC %s on connection %s", macStr, conn.ID)
+	}
+
 	entry := &MACEntry{
 		Connection: conn,
 		LearnedAt:  time.Now(),
 	}
-
 	vs.macTable.Store(macStr, entry)
-	log.Printf("Learned MAC %s on connection %s", macStr, conn.ID)
 }
 
 // forwardFrame forwards a unicast frame to the destination
@@ -214,12 +242,9 @@ func (vs *VirtualSwitch) forwardFrame(frame *EthernetFrame, sourceConn *Connecti
 				log.Printf("Failed to forward frame to %s: %v", entry.Connection.ID, err)
 				return err
 			}
-			log.Printf("Forwarded unicast frame %s -> %s via %s",
-				frame.SrcMAC.String(), destMAC, entry.Connection.ID)
 		}
 	} else {
 		// Unknown destination - flood the frame
-		log.Printf("Unknown destination %s, flooding frame", destMAC)
 		return vs.floodFrame(frame, sourceConn)
 	}
 
@@ -230,7 +255,7 @@ func (vs *VirtualSwitch) forwardFrame(frame *EthernetFrame, sourceConn *Connecti
 func (vs *VirtualSwitch) floodFrame(frame *EthernetFrame, sourceConn *Connection) error {
 	var errors []error
 
-	vs.connections.Range(func(key, value interface{}) bool {
+	vs.connections.Range(func(_, value interface{}) bool {
 		conn := value.(*Connection)
 
 		// Don't flood back to source
@@ -253,10 +278,6 @@ func (vs *VirtualSwitch) floodFrame(frame *EthernetFrame, sourceConn *Connection
 
 	if len(errors) > 0 {
 		log.Printf("Flooding completed with %d errors", len(errors))
-	} else {
-		log.Printf("Flooded %s frame from %s to all connections",
-			map[bool]string{true: "broadcast", false: "multicast"}[frame.IsBroadcast()],
-			frame.SrcMAC.String())
 	}
 
 	return nil
@@ -327,12 +348,12 @@ func (vs *VirtualSwitch) GetStats() map[string]interface{} {
 	connectionCount := 0
 	macCount := 0
 
-	vs.connections.Range(func(key, value interface{}) bool {
+	vs.connections.Range(func(_, _ interface{}) bool {
 		connectionCount++
 		return true
 	})
 
-	vs.macTable.Range(func(key, value interface{}) bool {
+	vs.macTable.Range(func(_, _ interface{}) bool {
 		macCount++
 		return true
 	})

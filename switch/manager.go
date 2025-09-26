@@ -120,13 +120,13 @@ func (sm *SwitchManager) GetStats() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"total_frames":     totalFrames,
-		"broadcast_frames": totalBroadcast,
-		"unicast_frames":   totalUnicast,
-		"dropped_frames":   totalDropped,
+		"total_frames":      totalFrames,
+		"broadcast_frames":  totalBroadcast,
+		"unicast_frames":    totalUnicast,
+		"dropped_frames":    totalDropped,
 		"total_connections": totalConnections,
 		"total_mac_entries": totalMACEntries,
-		"vlans":            vlanStats,
-		"vlan_count":       len(sm.switches),
+		"vlans":             vlanStats,
+		"vlan_count":        len(sm.switches),
 	}
 }

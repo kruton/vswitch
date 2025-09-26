@@ -1,3 +1,4 @@
+// Package main implements a virtual Ethernet switch for QEMU VMs.
 package main
 
 import (
@@ -13,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	vswitch "vswitch-for-qemu/switch"
+	vswitch "vswitch/switch"
 )
 
 // getEnvOrDefault returns environment variable value or default if not set
@@ -55,8 +56,6 @@ var (
 	version   = flag.Bool("version", false, "Show version information")
 )
 
-const appVersion = "1.0.0"
-
 // setupLogging configures logging based on daemon mode and log file settings
 func setupLogging(logFile string, isDaemon bool) error {
 	if logFile == "" {
@@ -82,7 +81,7 @@ func setupLogging(logFile string, isDaemon bool) error {
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Virtual Switch for QEMU VMs v%s\n\n", appVersion)
+		fmt.Fprintf(os.Stderr, "Virtual Switch for QEMU VMs %s\n\n", GetVersion())
 		fmt.Fprintf(os.Stderr, "A high-performance virtual Ethernet switch with isolated VLANs.\n")
 		fmt.Fprintf(os.Stderr, "Each port creates a separate isolated virtual LAN.\n\n")
 		fmt.Fprintf(os.Stderr, "Usage: %s [options]\n\n", os.Args[0])
@@ -98,7 +97,7 @@ func main() {
 	flag.Parse()
 
 	if *version {
-		fmt.Printf("Virtual Switch for QEMU VMs v%s\n", appVersion)
+		fmt.Printf("Virtual Switch for QEMU VMs %s\n", GetVersion())
 		os.Exit(0)
 	}
 
@@ -154,7 +153,7 @@ func main() {
 	if err := setupLogging(*logFile, *daemon); err != nil {
 		log.Fatalf("Failed to setup logging: %v", err)
 	}
-	log.Printf("Starting Virtual Switch v%s", appVersion)
+	log.Printf("Starting Virtual Switch %s", GetVersion())
 	log.Printf("Configured VLANs on ports: %v", portList)
 
 	// Create switch manager and add VLANs for each port
@@ -243,9 +242,6 @@ func logStatsPeriodically(sm *vswitch.SwitchManager, interval time.Duration) {
 }
 
 // startStatsServer starts a simple HTTP server for statistics (placeholder)
-func startStatsServer(sm *vswitch.SwitchManager, port int) {
-	// This is a placeholder for a future HTTP statistics endpoint
-	// For now, we'll just log that it would be started
+func startStatsServer(_ *vswitch.SwitchManager, port int) {
 	log.Printf("Statistics server would be started on port %d (not implemented yet)", port)
 }
-

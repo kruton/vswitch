@@ -216,6 +216,6 @@ func TestEthernetFrameString(t *testing.T) {
 // Helper function to check if a string contains a substring
 func contains(s, substr string) bool {
 	return len(substr) <= len(s) && (substr == "" || s[len(s)-len(substr):] == substr ||
-		   s[:len(substr)] == substr || (len(s) > len(substr) &&
-		   s[1:len(substr)+1] == substr))
+		s[:len(substr)] == substr || (len(s) > len(substr) &&
+		s[1:len(substr)+1] == substr))
 }

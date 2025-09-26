@@ -1,6 +1,6 @@
-# Multi-stage build for vswitch-for-qemu
+# Multi-stage build for vswitch
 # Stage 1: Build the application
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git make
@@ -17,8 +17,9 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the application
-RUN make build
+ARG VERSION=dev
+
+RUN VERSION=${VERSION} make build
 
 # Stage 2: Create minimal runtime image
 FROM alpine:latest
@@ -43,10 +44,9 @@ USER vswitch
 # Expose default ports (these can be overridden)
 EXPOSE 9999 9998
 
-# Set default command
-CMD ["vswitch", "-help"]
+# Set default command to run the switch with default ports
+CMD ["vswitch", "-ports", "9999,9998"]
 
 # Labels for image metadata
 LABEL maintainer="Virtual Switch for QEMU" \
-      description="A virtual Ethernet switch for QEMU VM networking" \
-      version="1.0.0"
+      description="A virtual Ethernet switch for QEMU VM networking"

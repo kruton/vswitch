@@ -1,17 +1,20 @@
 # Virtual Switch for QEMU VMs - Makefile
 
-.PHONY: all build test test-coverage test-coverage-html clean install docker-build docker-run docker-run-daemon docker-stop docker-clean docker-shell
+.PHONY: all build lint security test test-unit test-coverage test-coverage-html clean install docker-build docker-run docker-run-daemon docker-stop docker-clean docker-shell
 
 # Build configuration
 BINARY_NAME := vswitch
-VERSION := 1.0.0
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_DIR := ./bin
 GO_FILES := $(shell find . -name '*.go' -type f)
 COVERAGE_FILE := coverage.out
 COVERAGE_HTML := coverage.html
 
+# Build flags
+LDFLAGS := -ldflags "-s -w -X main.Version=$(VERSION)"
+
 # Docker configuration
-DOCKER_IMAGE := vswitch-for-qemu
+DOCKER_IMAGE := vswitch
 DOCKER_TAG := $(VERSION)
 DOCKER_PORTS := -p 9999:9999 -p 9998:9998
 
@@ -23,11 +26,39 @@ build: $(BUILD_DIR)/$(BINARY_NAME)
 
 $(BUILD_DIR)/$(BINARY_NAME): $(GO_FILES)
 	@mkdir -p $(BUILD_DIR)
-	go build -o $(BUILD_DIR)/$(BINARY_NAME) .
-	@echo "Built $(BINARY_NAME) v$(VERSION)"
+	go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) .
+	@echo "Built $(BINARY_NAME) $(VERSION)"
 
-# Run tests
-test:
+# Run linting
+lint:
+	@if command -v revive >/dev/null 2>&1; then \
+		revive ./...; \
+	elif [ -x "$$(go env GOPATH)/bin/revive" ]; then \
+		$$(go env GOPATH)/bin/revive ./...; \
+	else \
+		echo "Warning: revive not found. Install with:"; \
+		echo "  go install github.com/mgechev/revive@latest"; \
+		echo "Skipping lint checks..."; \
+	fi
+
+# Run security checks
+security:
+	@if command -v gosec >/dev/null 2>&1; then \
+		gosec ./...; \
+	elif [ -x "$$(go env GOPATH)/bin/gosec" ]; then \
+		$$(go env GOPATH)/bin/gosec ./...; \
+	else \
+		echo "Warning: gosec not found. Install with:"; \
+		echo "  go install github.com/securego/gosec/v2/cmd/gosec@latest"; \
+		echo "Skipping security checks..."; \
+	fi
+
+# Run all tests including lint and security
+test: lint security
+	go test -v ./switch
+
+# Run only unit tests
+test-unit:
 	go test -v ./switch
 
 # Run tests with coverage
@@ -44,7 +75,6 @@ test-coverage-html: test-coverage
 clean:
 	rm -rf $(BUILD_DIR)
 	rm -f $(BINARY_NAME)
-	rm -f vswitch-for-qemu
 	rm -f $(COVERAGE_FILE)
 	rm -f $(COVERAGE_HTML)
 	go clean
@@ -56,11 +86,11 @@ install: build
 
 # Development build (current directory)
 dev:
-	go build -o $(BINARY_NAME) .
+	go build $(LDFLAGS) -o $(BINARY_NAME) .
 
 # Docker targets
 docker-build:
-	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
+	docker build --build-arg VERSION=$(VERSION) -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
 	docker tag $(DOCKER_IMAGE):$(DOCKER_TAG) $(DOCKER_IMAGE):latest
 	@echo "Built Docker image $(DOCKER_IMAGE):$(DOCKER_TAG)"
 
@@ -96,9 +126,12 @@ help:
 	@echo "  clean               - Clean build artifacts and coverage files"
 	@echo ""
 	@echo "Test targets:"
-	@echo "  test                - Run tests"
-	@echo "  test-coverage       - Run tests with coverage report"
+	@echo "  test                - Run all checks (lint, security, unit tests)"
+	@echo "  test-unit           - Run only unit tests"
+	@echo "  test-coverage       - Run unit tests with coverage report"
 	@echo "  test-coverage-html  - Generate HTML coverage report"
+	@echo "  lint                - Run revive linter checks"
+	@echo "  security            - Run gosec security checks"
 	@echo ""
 	@echo "Docker targets:"
 	@echo "  docker-build        - Build Docker image"

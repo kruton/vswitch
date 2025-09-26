@@ -1,6 +1,6 @@
 # Docker Usage Guide
 
-This document describes how to use the vswitch-for-qemu application with Docker.
+This document describes how to use the vswitch application with Docker.
 
 ## Building the Docker Image
 
@@ -9,7 +9,7 @@ make docker-build
 ```
 
 This creates a multi-stage Docker image:
-- **Build stage**: Uses `golang:1.21-alpine` to compile the application
+- **Build stage**: Uses `golang:1.24-alpine` to compile the application
 - **Runtime stage**: Uses minimal `alpine:latest` with the compiled binary
 - **Final size**: ~12MB
 
@@ -19,24 +19,24 @@ This creates a multi-stage Docker image:
 ```bash
 make docker-run
 # or
-docker run --rm -it -p 9999:9999 -p 9998:9998 vswitch-for-qemu:latest
+docker run --rm -it -p 9999:9999 -p 9998:9998 vswitch:latest
 ```
 
 ### Daemon Mode
 ```bash
 make docker-run-daemon
 # or
-docker run -d --restart unless-stopped -p 9999:9999 -p 9998:9998 --name vswitch-daemon vswitch-for-qemu:latest vswitch -daemon -ports 9999,9998
+docker run -d --restart unless-stopped -p 9999:9999 -p 9998:9998 --name vswitch-daemon vswitch:latest vswitch -daemon -ports 9999,9998
 ```
 
 ### Custom Ports
 ```bash
-docker run --rm -it -p 8080:8080 -p 8081:8081 vswitch-for-qemu:latest vswitch -ports 8080,8081
+docker run --rm -it -p 8080:8080 -p 8081:8081 vswitch:latest vswitch -ports 8080,8081
 ```
 
 ### With Statistics Server
 ```bash
-docker run --rm -it -p 9999:9999 -p 9998:9998 -p 8080:8080 vswitch-for-qemu:latest vswitch -ports 9999,9998 -stats-port 8080
+docker run --rm -it -p 9999:9999 -p 9998:9998 -p 8080:8080 vswitch:latest vswitch -ports 9999,9998 -stats-port 8080
 ```
 
 ## Container Management
@@ -58,7 +58,7 @@ docker logs -f vswitch-daemon
 ### Shell Access (Debugging)
 ```bash
 # Only works in interactive terminal
-docker run --rm -it --entrypoint /bin/sh vswitch-for-qemu:latest
+docker run --rm -it --entrypoint /bin/sh vswitch:latest
 ```
 
 ### Container Status
@@ -69,7 +69,7 @@ docker ps | grep vswitch
 ## Docker Image Details
 
 - **Base Image**: `alpine:latest`
-- **Go Version**: 1.21
+- **Go Version**: 1.24
 - **User**: Non-root user `vswitch` (UID/GID: 1001)
 - **Working Directory**: `/var/run/vswitch` (for PID files)
 - **Exposed Ports**: 9999, 9998 (default)
@@ -91,14 +91,14 @@ The container exposes the virtual switch ports. QEMU VMs can connect to these po
 ```bash
 make docker-clean
 # or
-docker rmi vswitch-for-qemu:1.0.0 vswitch-for-qemu:latest
+docker rmi vswitch:latest
 ```
 
 ### Remove All (including containers)
 ```bash
 docker stop vswitch-daemon 2>/dev/null || true
 docker rm vswitch-daemon 2>/dev/null || true
-docker rmi vswitch-for-qemu:1.0.0 vswitch-for-qemu:latest 2>/dev/null || true
+docker rmi vswitch:latest 2>/dev/null || true
 ```
 
 ## Security Considerations
@@ -108,7 +108,7 @@ docker rmi vswitch-for-qemu:1.0.0 vswitch-for-qemu:latest 2>/dev/null || true
 - No shell utilities in runtime image (minimal attack surface)
 - Use `--read-only` flag for additional security:
   ```bash
-  docker run --rm -it --read-only -p 9999:9999 -p 9998:9998 vswitch-for-qemu:latest
+  docker run --rm -it --read-only -p 9999:9999 -p 9998:9998 vswitch:latest
   ```
 
 ## Troubleshooting
@@ -127,7 +127,7 @@ lsof -i :9999
 docker logs vswitch-daemon
 
 # Check if ports are available
-docker run --rm vswitch-for-qemu:latest vswitch -ports 9999,9998
+docker run --rm vswitch:latest vswitch -ports 9999,9998
 ```
 
 ### Performance Issues

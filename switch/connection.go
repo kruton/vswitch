@@ -1,3 +1,4 @@
+// Package vswitch implements virtual Ethernet switching functionality.
 package vswitch
 
 import (
@@ -60,8 +61,7 @@ func (c *Connection) ReadFrame() (*EthernetFrame, error) {
 		return nil, fmt.Errorf("invalid frame length: %d", frameLen)
 	}
 
-	// Read the actual frame data
-	frameData := make([]byte, frameLen)
+	frameData := getFrameBuffer()[:frameLen]
 	if _, err := io.ReadFull(c.Conn, frameData); err != nil {
 		return nil, fmt.Errorf("failed to read frame data: %w", err)
 	}
@@ -112,14 +112,13 @@ func (c *Connection) WriteFrame(frame *EthernetFrame) error {
 	frameLen := uint32(dataLen)
 
 	// Write frame length first (big endian)
-	lengthBytes := []byte{
-		byte(frameLen >> 24),
-		byte(frameLen >> 16),
-		byte(frameLen >> 8),
-		byte(frameLen),
-	}
+	var lengthBytes [4]byte
+	lengthBytes[0] = byte(frameLen >> 24)
+	lengthBytes[1] = byte(frameLen >> 16)
+	lengthBytes[2] = byte(frameLen >> 8)
+	lengthBytes[3] = byte(frameLen)
 
-	if _, err := c.Conn.Write(lengthBytes); err != nil {
+	if _, err := c.Conn.Write(lengthBytes[:]); err != nil {
 		return fmt.Errorf("failed to write frame length: %w", err)
 	}
 

@@ -11,11 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ['1.20', '1.21']
+        go-version: ['1.24', '1.25']
 
     steps:
     - name: Checkout code
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      with:
+        fetch-depth: 0
 
     - name: Set up Go
       uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
@@ -50,7 +52,9 @@ jobs:
         name: codecov-umbrella
 
     - name: Build binary
-      run: go build -v -o vswitch main.go
+      run: |
+        VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
+        go build -ldflags="-s -w -X main.Version=${VERSION}" -o vswitch .
 
     - name: Run integration tests
       run: |
@@ -69,11 +73,13 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      with:
+        fetch-depth: 0
 
     - name: Set up Go
       uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
       with:
-        go-version: '1.21'
+        go-version: '1.25'
 
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@25e2cdc5eb1d7a04fdc45ff538f1a00e960ae128 # v8.0.0
@@ -89,11 +95,13 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      with:
+        fetch-depth: 0
 
     - name: Set up Go
       uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
       with:
-        go-version: '1.21'
+        go-version: '1.25'
 
     - name: Run Gosec Security Scanner
       uses: securego/gosec@20fa87a15a2f9e28cb4adc2fe269bb3232ec45e4 # v2.22.9

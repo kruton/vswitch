@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: vswitch-for-qemu
+    container_name: vswitch
     ports:
       - "9999:9999"  # VLAN 1 port
       - "9998:9998"  # VLAN 2 port

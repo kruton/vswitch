@@ -43,9 +43,9 @@ func (m *mockConnSwitch) Close() error {
 func (m *mockConnSwitch) LocalAddr() net.Addr  { return m.addr }
 func (m *mockConnSwitch) RemoteAddr() net.Addr { return m.addr }
 
-func (m *mockConnSwitch) SetDeadline(t time.Time) error      { return nil }
-func (m *mockConnSwitch) SetReadDeadline(t time.Time) error  { return nil }
-func (m *mockConnSwitch) SetWriteDeadline(t time.Time) error { return nil }
+func (m *mockConnSwitch) SetDeadline(_ time.Time) error      { return nil }
+func (m *mockConnSwitch) SetReadDeadline(_ time.Time) error  { return nil }
+func (m *mockConnSwitch) SetWriteDeadline(_ time.Time) error { return nil }
 
 // mockAddr implements net.Addr for testing
 type mockAddrSwitch struct {
@@ -77,7 +77,7 @@ func TestNewVirtualSwitch(t *testing.T) {
 	}
 }
 
-func TestVirtualSwitchStop(t *testing.T) {
+func TestVirtualSwitchStop(_ *testing.T) {
 	ports := []int{8080}
 	sw := NewVirtualSwitch(ports)
 

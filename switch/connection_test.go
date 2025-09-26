@@ -44,9 +44,9 @@ func (m *mockConn) Close() error {
 func (m *mockConn) LocalAddr() net.Addr  { return m.addr }
 func (m *mockConn) RemoteAddr() net.Addr { return m.addr }
 
-func (m *mockConn) SetDeadline(t time.Time) error      { return nil }
-func (m *mockConn) SetReadDeadline(t time.Time) error  { return nil }
-func (m *mockConn) SetWriteDeadline(t time.Time) error { return nil }
+func (m *mockConn) SetDeadline(_ time.Time) error      { return nil }
+func (m *mockConn) SetReadDeadline(_ time.Time) error  { return nil }
+func (m *mockConn) SetWriteDeadline(_ time.Time) error { return nil }
 
 // mockAddr implements net.Addr for testing
 type mockAddr struct {
@@ -99,17 +99,32 @@ func TestConnectionWriteFrame(t *testing.T) {
 		t.Errorf("Unexpected error writing frame: %v", err)
 	}
 
-	// Check that frame length and data were written
-	expectedLength := []byte{0x00, 0x00, 0x00, 0x10} // 16 bytes in big endian
-	expectedData := append(expectedLength, frameData...)
-
-	if len(mockConn.writeData) != len(expectedData) {
-		t.Errorf("Expected %d bytes written, got %d", len(expectedData), len(mockConn.writeData))
+	// Check that length prefix + frame data was written
+	expectedLen := 4 + len(frameData) // 4-byte length prefix + frame data
+	if len(mockConn.writeData) != expectedLen {
+		t.Errorf("Expected %d bytes written, got %d", expectedLen, len(mockConn.writeData))
 	}
 
-	for i, b := range expectedData {
-		if i < len(mockConn.writeData) && mockConn.writeData[i] != b {
-			t.Errorf("Expected byte %d to be 0x%02x, got 0x%02x", i, b, mockConn.writeData[i])
+	// Check length prefix (big-endian)
+	frameLen := uint32(len(frameData))
+	expectedLengthBytes := []byte{
+		byte(frameLen >> 24),
+		byte(frameLen >> 16),
+		byte(frameLen >> 8),
+		byte(frameLen),
+	}
+
+	for i, expected := range expectedLengthBytes {
+		if mockConn.writeData[i] != expected {
+			t.Errorf("Expected length byte %d to be 0x%02x, got 0x%02x", i, expected, mockConn.writeData[i])
+		}
+	}
+
+	// Check frame data (starts after 4-byte length prefix)
+	for i, b := range frameData {
+		dataIndex := 4 + i
+		if dataIndex < len(mockConn.writeData) && mockConn.writeData[dataIndex] != b {
+			t.Errorf("Expected frame byte %d to be 0x%02x, got 0x%02x", i, b, mockConn.writeData[dataIndex])
 		}
 	}
 
@@ -262,7 +277,7 @@ func TestConnectionReadFrameErrors(t *testing.T) {
 
 	// Test short read for frame data
 	frameLength := []byte{0x00, 0x00, 0x00, 0x10} // 16 bytes expected
-	incompleteFrame := []byte{0x01, 0x02, 0x03}    // Only 3 bytes
+	incompleteFrame := []byte{0x01, 0x02, 0x03}   // Only 3 bytes
 	mockConnShort := &mockConn{
 		addr:     &mockAddr{network: "tcp", address: "127.0.0.1:8080"},
 		readData: append(frameLength, incompleteFrame...),

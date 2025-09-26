@@ -7,11 +7,12 @@ import (
 
 // EthernetFrame represents a parsed Ethernet frame
 type EthernetFrame struct {
+	Raw       []byte
 	DestMAC   net.HardwareAddr
 	SrcMAC    net.HardwareAddr
 	EtherType uint16
 	Payload   []byte
-	Raw       []byte
+	pooled    bool
 }
 
 // BroadcastMAC is the Ethernet broadcast address
@@ -24,19 +25,24 @@ func ParseEthernetFrame(data []byte) (*EthernetFrame, error) {
 	}
 
 	frame := &EthernetFrame{
-		Raw: make([]byte, len(data)),
+		Raw:       data,
+		DestMAC:   data[0:6],
+		SrcMAC:    data[6:12],
+		EtherType: uint16(data[12])<<8 | uint16(data[13]),
+		Payload:   data[14:],
+		pooled:    true,
 	}
-	copy(frame.Raw, data)
-
-	// Parse Ethernet header (14 bytes)
-	frame.DestMAC = net.HardwareAddr(data[0:6])
-	frame.SrcMAC = net.HardwareAddr(data[6:12])
-	frame.EtherType = uint16(data[12])<<8 | uint16(data[13])
-
-	// Payload is everything after the 14-byte header
-	frame.Payload = data[14:]
 
 	return frame, nil
+}
+
+// Release returns the frame buffer to the pool if it was pooled
+func (f *EthernetFrame) Release() {
+	if f.pooled && f.Raw != nil {
+		putFrameBuffer(f.Raw)
+		f.Raw = nil
+		f.pooled = false
+	}
 }
 
 // IsBroadcast returns true if the frame is a broadcast frame
