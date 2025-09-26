@@ -1,0 +1,94 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+      with:
+        go-version: '1.21'
+
+    - name: Build binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        GOARM: ${{ matrix.goarm }}
+      run: |
+        # Set binary name with extension for Windows
+        BINARY_NAME=vswitch
+        if [ "$GOOS" = "windows" ]; then
+          BINARY_NAME="${BINARY_NAME}.exe"
+        fi
+
+        # Build with version info
+        go build -ldflags="-s -w -X main.appVersion=${{ github.ref_name }}" -o "${BINARY_NAME}" main.go
+
+        # Create archive
+        ARCHIVE_NAME="vswitch-${{ github.ref_name }}-${GOOS}-${GOARCH}"
+        if [ -n "${{ matrix.goarm }}" ]; then
+          ARCHIVE_NAME="${ARCHIVE_NAME}v${{ matrix.goarm }}"
+        fi
+
+        if [ "$GOOS" = "windows" ]; then
+          ARCHIVE_NAME="${ARCHIVE_NAME}.zip"
+          zip "${ARCHIVE_NAME}" "${BINARY_NAME}" README.md LICENSE 2>/dev/null || zip "${ARCHIVE_NAME}" "${BINARY_NAME}" README.md
+        else
+          ARCHIVE_NAME="${ARCHIVE_NAME}.tar.gz"
+          tar -czf "${ARCHIVE_NAME}" "${BINARY_NAME}" README.md LICENSE 2>/dev/null || tar -czf "${ARCHIVE_NAME}" "${BINARY_NAME}" README.md
+        fi
+
+        echo "ARCHIVE_NAME=${ARCHIVE_NAME}" >> $GITHUB_ENV
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get the previous tag
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+        # Generate changelog
+        if [ -z "$PREV_TAG" ]; then
+          echo "## What's New" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          git log --pretty=format:"- %s" --no-merges >> CHANGELOG.md
+        else
+          echo "## What's New" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          git log ${PREV_TAG}..HEAD --pretty=format:"- %s" --no-merges >> CHANGELOG.md
+        fi
+
+    - name: Create Release
+      uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
+      with:
+        files: ${{ env.ARCHIVE_NAME }}
+        body_path: CHANGELOG.md
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

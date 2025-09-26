@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  vswitch:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vswitch-for-qemu
+    ports:
+      - "9999:9999"  # VLAN 1 port
+      - "9998:9998"  # VLAN 2 port
+    environment:
+      - VSWITCH_PORTS=9999,9998
+      - VSWITCH_LOG_LEVEL=info
+    restart: unless-stopped
