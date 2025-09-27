@@ -10,9 +10,6 @@ GO_FILES := $(shell find . -name '*.go' -type f)
 COVERAGE_FILE := coverage.out
 COVERAGE_HTML := coverage.html
 
-# Build flags
-LDFLAGS := -ldflags "-s -w -X main.Version=$(VERSION)"
-
 # Docker configuration
 DOCKER_IMAGE := vswitch
 DOCKER_TAG := $(VERSION)
@@ -26,7 +23,7 @@ build: $(BUILD_DIR)/$(BINARY_NAME)
 
 $(BUILD_DIR)/$(BINARY_NAME): $(GO_FILES)
 	@mkdir -p $(BUILD_DIR)
-	go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) .
+	go build -ldflags "-s -w -X main.Version=$(VERSION)" -o $(BUILD_DIR)/$(BINARY_NAME) .
 	@echo "Built $(BINARY_NAME) $(VERSION)"
 
 # Run linting
@@ -86,7 +83,7 @@ install: build
 
 # Development build (current directory)
 dev:
-	go build $(LDFLAGS) -o $(BINARY_NAME) .
+	go build -gcflags "all=-N -l" -ldflags "-X main.Version=$(VERSION)" -o $(BINARY_NAME) .
 
 # Docker targets
 docker-build:
