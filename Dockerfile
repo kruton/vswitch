@@ -44,8 +44,11 @@ USER vswitch
 # Expose default ports (these can be overridden)
 EXPOSE 9999 9998
 
+# Set the default ports to match those exposed.
+ENV VSWITCH_PORTS=9999,9998
+
 # Set default command to run the switch with default ports
-CMD ["vswitch", "-ports", "9999,9998"]
+CMD ["vswitch"]
 
 # Labels for image metadata
 LABEL maintainer="Virtual Switch for QEMU" \
