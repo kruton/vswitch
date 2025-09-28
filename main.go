@@ -104,10 +104,14 @@ func main() {
 	// Initialize daemon manager
 	dm := vswitch.NewDaemonManager(*pidFile, *logFile)
 
-	// Handle daemon control commands
 	if *stop {
+		if !dm.IsRunning() {
+			fmt.Printf("Daemon is not running\n")
+			os.Exit(1)
+		}
 		if err := dm.Stop(); err != nil {
-			log.Fatalf("Failed to stop daemon: %v", err)
+			fmt.Fprintf(os.Stderr, "Failed to stop daemon: %v\n", err)
+			os.Exit(2)
 		}
 		fmt.Printf("Daemon stopped\n")
 		os.Exit(0)
@@ -117,10 +121,10 @@ func main() {
 		if dm.IsRunning() {
 			pid := dm.GetPID()
 			fmt.Printf("Daemon is running (PID: %d)\n", pid)
-		} else {
-			fmt.Printf("Daemon is not running\n")
+			os.Exit(0)
 		}
-		os.Exit(0)
+		fmt.Printf("Daemon is not running\n")
+		os.Exit(1)
 	}
 
 	// Parse ports
@@ -133,9 +137,11 @@ func main() {
 		log.Fatalf("No ports specified")
 	}
 
-	// Handle daemon mode
 	if *daemon {
-		// Remove daemon flag from args to prevent recursion
+		if dm.IsRunning() {
+			fmt.Printf("Daemon is already running\n")
+			os.Exit(1)
+		}
 		args := []string{}
 		for i, arg := range os.Args {
 			if arg != "-daemon" {
@@ -143,7 +149,8 @@ func main() {
 			}
 		}
 		if err := dm.Daemonize(args); err != nil {
-			log.Fatalf("Failed to start daemon: %v", err)
+			fmt.Fprintf(os.Stderr, "Failed to start daemon: %v\n", err)
+			os.Exit(2)
 		}
 		fmt.Printf("Daemon started\n")
 		os.Exit(0)
