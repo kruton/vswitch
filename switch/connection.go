@@ -118,12 +118,11 @@ func (c *Connection) WriteFrame(frame *EthernetFrame) error {
 	lengthBytes[2] = byte(frameLen >> 8)
 	lengthBytes[3] = byte(frameLen)
 
-       // Write frame length and frame data in a single write using net.Buffers (scatter/gather I/O)
-       buffers := net.Buffers{lengthBytes[:], frameData}
-       if _, err := buffers.WriteTo(c.Conn); err != nil {
-	       return fmt.Errorf("failed to write frame length and data: %w", err)
-       }
-
+	// Write frame length and frame data in a single write using net.Buffers (scatter/gather I/O)
+	buffers := net.Buffers{lengthBytes[:], frameData}
+	if _, err := buffers.WriteTo(c.Conn); err != nil {
+		return fmt.Errorf("failed to write frame length and data: %w", err)
+	}
 	// Update statistics
 	c.mutex.Lock()
 	c.FramesSent++
