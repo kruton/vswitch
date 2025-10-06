@@ -104,7 +104,7 @@ jobs:
         go-version: '1.25'
 
     - name: Run Gosec Security Scanner
-      uses: securego/gosec@20fa87a15a2f9e28cb4adc2fe269bb3232ec45e4 # v2.22.9
+      uses: securego/gosec@15d5c61e866bc2e2e8389376a31f1e5e09bde7d8 # v2.22.9
       with:
         args: '-fmt sarif -out gosec.sarif ./...'
 
