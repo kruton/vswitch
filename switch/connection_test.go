@@ -1,6 +1,7 @@
 package vswitch
 
 import (
+	"encoding/binary"
 	"io"
 	"net"
 	"testing"
@@ -107,12 +108,8 @@ func TestConnectionWriteFrame(t *testing.T) {
 
 	// Check length prefix (big-endian)
 	frameLen := uint32(len(frameData))
-	expectedLengthBytes := []byte{
-		byte(frameLen >> 24),
-		byte(frameLen >> 16),
-		byte(frameLen >> 8),
-		byte(frameLen),
-	}
+	expectedLengthBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(expectedLengthBytes, frameLen)
 
 	for i, expected := range expectedLengthBytes {
 		if mockConn.writeData[i] != expected {

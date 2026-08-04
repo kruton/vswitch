@@ -2,6 +2,7 @@
 package vswitch
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
@@ -113,10 +114,7 @@ func (c *Connection) WriteFrame(frame *EthernetFrame) error {
 
 	// Write frame length first (big endian)
 	var lengthBytes [4]byte
-	lengthBytes[0] = byte(frameLen >> 24)
-	lengthBytes[1] = byte(frameLen >> 16)
-	lengthBytes[2] = byte(frameLen >> 8)
-	lengthBytes[3] = byte(frameLen)
+	binary.BigEndian.PutUint32(lengthBytes[:], frameLen)
 
 	// Write frame length and frame data in a single write using net.Buffers (scatter/gather I/O)
 	buffers := net.Buffers{lengthBytes[:], frameData}
