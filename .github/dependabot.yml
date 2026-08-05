@@ -7,9 +7,9 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     reviewers:
-      - "maintainer"
+      - "kruton"
     assignees:
-      - "maintainer"
+      - "kruton"
     commit-message:
       prefix: "deps"
       include: "scope"
@@ -21,9 +21,9 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     reviewers:
-      - "maintainer"
+      - "kruton"
     assignees:
-      - "maintainer"
+      - "kruton"
     commit-message:
       prefix: "ci"
       include: "scope"
@@ -35,9 +35,9 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     reviewers:
-      - "maintainer"
+      - "kruton"
     assignees:
-      - "maintainer"
+      - "kruton"
     commit-message:
       prefix: "docker"
       include: "scope"
